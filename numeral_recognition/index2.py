@@ -205,7 +205,7 @@ def load_image(img_path):
 def validation():
     # 定义预测过程
     params_file_path = 'mnist2.pdparams'
-    img_path = './0.png'
+    img_path = './5_1.png'
     # 加载模型参数
     param_dict = paddle.load(params_file_path)
     model.load_dict(param_dict)
@@ -220,6 +220,6 @@ def validation():
 
 
 model = MNIST()
-# train(model)
+train(model)
 evaluation(model)
-# validation()
+validation()
