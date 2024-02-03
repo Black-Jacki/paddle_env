@@ -1,16 +1,16 @@
 # 用本地图片数据进行训练
-import os.path
 
+import os.path
 import paddle
 import paddle.nn as nn
 import paddle.nn.functional as fn
 import numpy as np
+import itertools
 import matplotlib.pyplot as plt
 from paddle.vision.datasets import MNIST
 from paddle.vision.transforms import ToTensor
 from paddle.io import Dataset, DataLoader
 from PIL import Image
-import itertools
 
 EPOCH_NUM = 5
 IMG_SIZE = 28
@@ -110,7 +110,7 @@ def train(model, opt, train_loader, valid_loader):
             loss = loss_func(logits, label)
             avg_loss = paddle.mean(loss)
 
-            if batch_id % 500 == 0:
+            if batch_id % 50 == 0:
                 print("epoch: {}, batch_id: {}, loss is: {:.4f}".format(epoch + 1, batch_id, float(avg_loss.numpy())))
 
             avg_loss.backward()
