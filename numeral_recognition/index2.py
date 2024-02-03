@@ -195,17 +195,17 @@ def evaluation(model):
 def load_image(img_path):
     # 从img_path中读取图像，并转为灰度图
     im = Image.open(img_path).convert('L')
-    im = im.resize((IMG_ROWS, IMG_COLS), Image.LANCZOS)
-    im = np.array(im).reshape(1, 1, IMG_ROWS, IMG_COLS).astype(np.float32)
+    im = im.resize((IMG_ROWS, IMG_COLS))
+    im = np.array(im).reshape([1, 1, IMG_ROWS, IMG_COLS]).astype(np.float32)
     # 图像归一化
-    im = 1.0 - im / 255.
+    im = 1.0 - im / 255.0
     return im
 
 
 def validation():
     # 定义预测过程
     params_file_path = 'mnist2.pdparams'
-    img_path = './5_1.png'
+    img_path = './eval_imgs/3.jpg'
     # 加载模型参数
     param_dict = paddle.load(params_file_path)
     model.load_dict(param_dict)
@@ -220,6 +220,6 @@ def validation():
 
 
 model = MNIST()
-train(model)
-evaluation(model)
+# train(model)
+# evaluation(model)
 validation()

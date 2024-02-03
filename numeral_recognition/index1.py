@@ -71,25 +71,24 @@ def train(model):
             opt.clear_grad()
 
 
-train(model)
-paddle.save(model.state_dict(), './mnist.pdparams')
+# train(model)
+# paddle.save(model.state_dict(), './mnist.pdparams')
 
 
 # 读取一张本地的样例图片，转变成模型输入的格式
 def load_image(img_path):
     # 从img_path中读取图像，并转为灰度图
-    im = Image.open(img_path).convert('L')
-    # print(np.array(im))
-    im = im.resize((28, 28), Image.ANTIALIAS)
-    im = np.array(im).reshape(1, -1).astype(np.float32)
-    # 图像归一化，保持和数据集的数据范围一致
-    im = 1 - im / 255
+    im = Image.open(img_path).convert("L")
+    im = im.resize((28, 28))
+    im = np.array(im).reshape([1, 1, 784]).astype(np.float32)
+    # 图像归一化
+    im = 1 - im / 255.0
     return im
 
 
 # 定义预测过程
 params_file_path = 'mnist.pdparams'
-img_path = './0.png'
+img_path = './eval_imgs/4.jpg'
 # 加载模型参数
 param_dict = paddle.load(params_file_path)
 model.load_dict(param_dict)

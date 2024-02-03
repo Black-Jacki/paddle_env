@@ -1,4 +1,5 @@
-# 根据b站视频教程的训练方式，手写数字识别
+# 用本地图片数据进行训练
+import os.path
 
 import paddle
 import paddle.nn as nn
@@ -7,7 +8,59 @@ import numpy as np
 import matplotlib.pyplot as plt
 from paddle.vision.datasets import MNIST
 from paddle.vision.transforms import ToTensor
+from paddle.io import Dataset, DataLoader
 from PIL import Image
+import itertools
+
+EPOCH_NUM = 5
+IMG_SIZE = 28
+# 模型参数保存路径
+PD_PARAMS_FILE_NAME = "mnist5.pdparams"
+
+
+# 自定义数据集
+class CustomDataset(Dataset):
+    def __init__(self, data_dir):
+        super().__init__()
+        self.data_dir = data_dir
+        self.image_paths = [os.path.join(data_dir, img) for img in os.listdir(data_dir)]
+
+    def __getitem__(self, idx):
+        img_path = self.image_paths[idx]
+        # 从img_path中读取图像，并转为灰度图
+        img = Image.open(img_path).convert("L")
+        img = img.resize((IMG_SIZE, IMG_SIZE))
+        img = np.array(img).reshape([1, IMG_SIZE, IMG_SIZE]).astype(np.float32)
+        # 图像归一化
+        img = 1 - img / 255.0
+        img = paddle.to_tensor(img)
+        label = np.array(os.path.basename(img_path).split(".")[0]).reshape([1]).astype("int64")
+        return img, label
+
+    def __len__(self):
+        return len(self.image_paths)
+
+
+class ConcatDataset(Dataset):
+    def __init__(self, datasets):
+        super().__init__()
+        self.datasets = datasets
+
+        # 计算每个数据集的长度
+        self.cumulative_sizes = [0] + [len(dataset) for dataset in self.datasets]
+        self.cumulative_sizes = list(itertools.accumulate(self.cumulative_sizes))
+
+    def __getitem__(self, idx):
+        for i, size in enumerate(self.cumulative_sizes):
+            if idx < size:
+                if i == 0:
+                    return self.datasets[0][idx]
+                else:
+                    return self.datasets[i - 1][idx - self.cumulative_sizes[i - 1]]
+        raise IndexError('Index out of range')
+
+    def __len__(self):
+        return self.cumulative_sizes[-1]
 
 
 # 定义模型
@@ -84,7 +137,7 @@ def train(model, opt, train_loader, valid_loader):
         model.train()
 
     # 保存模型参数
-    paddle.save(model.state_dict(), "mnist4.pdparams")
+    paddle.save(model.state_dict(), PD_PARAMS_FILE_NAME)
 
 
 # 预测
@@ -102,43 +155,47 @@ def eval_func(model, img, label):
     print("预测数字: {}, 正确答案: {}, 准确率: {:.2f}%".format(num, label, maxValue * 100))
 
 
-# 读取一张本地的样例图片，转变成模型输入的格式
-def load_image(img_path):
-    # 从img_path中读取图像，并转为灰度图
-    im = Image.open(img_path).convert("L")
-    im = im.resize((IMG_ROWS, IMG_COLS))
-    im = np.array(im).reshape([1, 1, IMG_ROWS, IMG_COLS]).astype(np.float32)
-    # 图像归一化
-    im = 1 - im / 255.0
-    return im
+# 创建数据集实例
+dataset1 = CustomDataset("./eval_imgs")
+dataset2 = CustomDataset("./eval_imgs2")
+dataset3 = CustomDataset("./eval_imgs3")
+train_dataset = []
+eval_dataset = []
+for i in range(100):
+    train_dataset.append(dataset1)
+for i in range(100):
+    train_dataset.append(dataset3)
+for i in range(20):
+    eval_dataset.append(dataset2)
 
+train_loader = DataLoader(ConcatDataset(train_dataset), batch_size=10, shuffle=True)
+eval_loader = DataLoader(ConcatDataset(eval_dataset), batch_size=10)
 
-EPOCH_NUM = 5
-# MNIST图像高和宽
-IMG_ROWS, IMG_COLS = 28, 28
+# 查看数据集大小
+print('train dataset size:', len(train_dataset))
+print('eval dataset size:', len(eval_dataset))
+
+# 遍历数据集示例
+# for batch_data in train_loader:
+#     images, labels = batch_data
+#     print('Batch images shape:', images.shape)
+#     print('Batch labels:', labels)
+#     break  # 仅遍历一个batch的数据示例
+
 model = LeNet(num_classes=10)
 # opt = paddle.optimizer.Adamax(
 #     learning_rate=0.001,
 #     weight_decay=paddle.regularizer.L2Decay(coeff=1e-5),
 #     parameters=model.parameters()
 # )
-# train_loader = paddle.io.DataLoader(MNIST(mode="train", transform=ToTensor()), batch_size=10, shuffle=True)
-# valid_loader = paddle.io.DataLoader(MNIST(mode="test", transform=ToTensor()), batch_size=10)
-# train(model, opt, train_loader, valid_loader)
+# train(model, opt, train_loader, eval_loader)
 
 # 预测
-model_dict = paddle.load("mnist_best.pdparams")
+model_dict = paddle.load(PD_PARAMS_FILE_NAME)
 model.set_state_dict(model_dict)
 model.eval()
 
-# eval_loader = MNIST(mode="test", transform=ToTensor())
-# plt.imshow(eval_img.squeeze(), cmap="gray")
-# plt.show()
-eval_img_dir = "./eval_imgs2/"
-
 for index in range(0, 10):
-    # eval_img = np.array(eval_loader[index][0])
-    # label = eval_loader[index][1]
-    eval_img = load_image(eval_img_dir + str(index) + ".jpg")
-    label = str(index)
+    eval_img = np.array(dataset2[index][0])
+    label = dataset2[index][1]
     eval_func(model, eval_img, label)
